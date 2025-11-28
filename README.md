@@ -11,7 +11,7 @@
 
 - 💬 Ask me about **Backend Development**
 
-- 📫 How to reach me **naman888aadi@outlook.com**
+- 📫 How to reach me **naman342jain@gmail.com**
 
 <h3 align="left">Connect with me:</h3>
 <p align="left">
