@@ -1,7 +1,7 @@
 <h1 align="center">Hi 👋, I'm namanoncode</h1>
 <h3 align="center">Specializing in backend development, event-driven microservices, and cloud-native systems. Built real-world projects and deploying them on Cloud with Docker CI/CD and has contributed to open-source projects. Expertise spans Spring Boot, Java , with a strong foundation in data structures, distributed systems, and software engineering</h3>
 
-- 🔭 I’m currently working on **Virtual Queue Management System**
+- 🔭 I’m currently working on **ReactiveChainDB-V2**
 
 - 🌱 I’m currently learning **Event-driven Reactive Systems, Microservices, Distributed Systems**
 
@@ -9,7 +9,7 @@
 
 - 👨‍💻 All of my projects are available at [https://namanoncode.me/](https://namanoncode.me/)
 
-- 💬 Ask me about **Backend Development**
+- 💬 Ask me about **Backend Development , SystemDesign**
 
 - 📫 How to reach me **naman342jain@gmail.com**
 
