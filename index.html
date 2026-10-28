@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>@namanoncode / 3D Skyline Contributions</title>
+  
+  <!-- Site Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      
+      --bg-darker: #0d1117;
+      --bg-card: rgba(22, 27, 34, 0.85);
+      --border-card: rgba(255, 255, 255, 0.1);
+      
+      --text-main: #e6edf3;
+      --text-muted: #8b949e;
+      
+      --gh-0: #ebedf0;
+      --gh-1: #9be9a8;
+      --gh-2: #40c463;
+      --gh-3: #30a14e;
+      --gh-4: #216e39;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-darker);
+      color: var(--text-main);
+      font-family: var(--font-sans);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 32px 16px 48px;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 940px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    header {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .badge-pill {
+      align-self: flex-start;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: rgba(64, 196, 99, 0.12);
+      border: 1px solid rgba(64, 196, 99, 0.35);
+      color: #40c463;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 500;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #40c463;
+      box-shadow: 0 0 8px #40c463;
+    }
+
+    h1 {
+      font-family: var(--font-mono);
+      font-size: clamp(22px, 4vw, 32px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+    }
+
+    p.subtitle {
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* Skyline Canvas Card */
+    .skyline-card {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow: hidden;
+    }
+
+    .card-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .stats-summary {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .total-number {
+      font-family: var(--font-mono);
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .total-label {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* Canvas box */
+    .canvas-box {
+      position: relative;
+      width: 100%;
+      height: 310px;
+      border-radius: 12px;
+      background: rgba(13, 17, 23, 0.6);
+      overflow: hidden;
+    }
+
+    @media (max-width: 640px) {
+      .canvas-box {
+        height: 220px;
+      }
+      .skyline-card {
+        padding: 14px;
+      }
+    }
+
+    /* Legend */
+    .legend-bar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    .legend-swatches {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .swatch {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+    }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    .stat-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 12px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-pill-label {
+      color: var(--text-muted);
+      font-size: 12px;
+      font-family: var(--font-mono);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stat-pill-value {
+      color: #ffffff;
+      font-size: 20px;
+      font-family: var(--font-mono);
+      font-weight: 700;
+    }
+
+    .stat-pill-sub {
+      color: #40c463;
+      font-size: 11.5px;
+      font-family: var(--font-sans);
+    }
+
+    footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 12.5px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    footer a {
+      color: #40c463;
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="badge-pill">
+        <span class="badge-dot"></span>
+        <span>Real GitHub GraphQL Data</span>
+      </div>
+      <h1>@namanoncode Contributions Skyline</h1>
+      <p class="subtitle">
+        3D Oblique projection visualization of real daily contributions. Each tower's height is proportional to the square root of the count, rising in a fluid wave from front to back, finished with a leader line to the best day.
+      </p>
+    </header>
+
+    <div class="skyline-card">
+      <div class="card-topbar">
+        <div class="stats-summary">
+          <span class="total-number" id="total-contributions">1,163</span>
+          <span class="total-label">contributions in the last year</span>
+        </div>
+
+        <div class="legend-bar">
+          <span>Less</span>
+          <div class="legend-swatches">
+            <span class="swatch" style="background: var(--gh-0);" title="0 contributions"></span>
+            <span class="swatch" style="background: var(--gh-1);" title="Level 1"></span>
+            <span class="swatch" style="background: var(--gh-2);" title="Level 2"></span>
+            <span class="swatch" style="background: var(--gh-3);" title="Level 3"></span>
+            <span class="swatch" style="background: var(--gh-4);" title="Level 4"></span>
+          </div>
+          <span>More</span>
+        </div>
+      </div>
+
+      <!-- Canvas container managed by SkylineComponent -->
+      <div id="skyline-container" class="canvas-box"></div>
+    </div>
+
+    <!-- Quick Insights -->
+    <div class="stats-grid">
+      <div class="stat-pill">
+        <span class="stat-pill-label">Total Contributions</span>
+        <span class="stat-pill-value" id="stat-total">1,163</span>
+        <span class="stat-pill-sub">Across 53 Weeks</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-pill-label">Best Single Day</span>
+        <span class="stat-pill-value" id="stat-best-count">70</span>
+        <span class="stat-pill-sub" id="stat-best-date">Aug 3, 2026</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-pill-label">Active Days</span>
+        <span class="stat-pill-value" id="stat-active-days">142</span>
+        <span class="stat-pill-sub">Days with commits / PRs</span>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-pill-label">Projection</span>
+        <span class="stat-pill-value">Oblique 3D</span>
+        <span class="stat-pill-sub">Height ~ &radic;Count</span>
+      </div>
+    </div>
+
+    <footer>
+      Crafted for <a href="https://github.com/namanoncode" target="_blank" rel="noopener">@namanoncode</a> profile &bull; Canvas client component at devicePixelRatio
+    </footer>
+  </div>
+
+  <script type="module">
+    import { SkylineComponent } from './src/skylineComponent.js';
+
+    async function init() {
+      let githubData;
+      try {
+        const response = await fetch('./data/github.json');
+        githubData = await response.json();
+      } catch (err) {
+        console.error('Failed to load data/github.json:', err);
+        return;
+      }
+
+      // Update UI stats
+      if (githubData.total != null) {
+        document.getElementById('total-contributions').textContent = githubData.total.toLocaleString();
+        document.getElementById('stat-total').textContent = githubData.total.toLocaleString();
+      }
+
+      if (githubData.bestDay) {
+        document.getElementById('stat-best-count').textContent = githubData.bestDay.count;
+        if (githubData.bestDay.date) {
+          const [y, m, d] = githubData.bestDay.date.split('-');
+          const dt = new Date(Number(y), Number(m) - 1, Number(d));
+          document.getElementById('stat-best-date').textContent = dt.toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+          });
+        }
+      }
+
+      if (Array.isArray(githubData.counts)) {
+        const active = githubData.counts.filter(c => c > 0).length;
+        document.getElementById('stat-active-days').textContent = active.toString();
+      }
+
+      // Mount the Skyline client component
+      const container = document.getElementById('skyline-container');
+      new SkylineComponent(container, githubData);
+    }
+
+    init();
+  </script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "name": "namanoncode-profile",
+  "version": "1.0.0",
+  "description": "3D Skyline Animated GitHub Contribution Graph for @namanoncode profile",
+  "type": "module",
+  "scripts": {
+    "fetch-github": "node scripts/fetch-github.mjs",
+    "generate-svg": "node scripts/generate-svg.mjs",
+    "build": "node scripts/generate-svg.mjs",
+    "serve": "python3 -m http.server 8080"
+  },
+  "keywords": [
+    "github-contributions",
+    "skyline",
+    "3d",
+    "oblique-projection",
+    "canvas-animation"
+  ],
+  "author": "namanoncode",
+  "license": "MIT"
+}

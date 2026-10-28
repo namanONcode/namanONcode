@@ -13,6 +13,12 @@
 
 - 📫 How to reach me **naman342jain@gmail.com**
 
+<div align="center">
+  <br />
+  <img src="./skyline.svg" alt="@namanoncode 3D Contribution Skyline" width="100%" />
+  <br />
+</div>
+
 <h3 align="left">Connect with me:</h3>
 
 <table>
