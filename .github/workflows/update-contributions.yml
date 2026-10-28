@@ -25,7 +25,7 @@ jobs:
 
       - name: Fetch GitHub contribution calendar
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.COMMIT_TOKEN }}
         run: node scripts/fetch-github.mjs
 
       - name: Generate 3D skyline SVG
