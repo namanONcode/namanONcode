@@ -5,9 +5,11 @@ import { createSkylineDraw } from './skylineAnimation.js';
 
 /**
  * React Client Component for GitHub Skyline Contribution Graph animation.
+ * Light Mode Theme with Hover Interactivity.
  * 
  * - One canvas that fills its container at devicePixelRatio (max 2).
- * - Pure function draw(ctx, w, h, t) where t is milliseconds since start.
+ * - Pure function draw(ctx, w, h, t, hoveredDay) where t is milliseconds since start.
+ * - Interactive mouse hover with dynamic tooltips.
  * - Replay button resets t.
  * - prefers-reduced-motion draws t = Infinity.
  * - Starts playing when 40% in view (IntersectionObserver).
@@ -26,7 +28,8 @@ export default function SkylineCanvas({ data, className = '' }) {
   const hasStartedRef = useRef(false);
   const prefersReducedMotionRef = useRef(false);
   const drawFuncRef = useRef(null);
-  const [isHovered, setIsHovered] = useState(false);
+  const hoveredDayRef = useRef(null);
+  const [isBtnHovered, setIsBtnHovered] = useState(false);
 
   // Initialize pure draw function
   useEffect(() => {
@@ -43,7 +46,7 @@ export default function SkylineCanvas({ data, className = '' }) {
 
     const width = parseFloat(canvas.style.width) || canvas.width;
     const height = parseFloat(canvas.style.height) || canvas.height;
-    drawFuncRef.current(ctx, width, height, t);
+    drawFuncRef.current(ctx, width, height, t, hoveredDayRef.current);
   }, []);
 
   const stopAnimation = useCallback(() => {
@@ -179,31 +182,95 @@ export default function SkylineCanvas({ data, className = '' }) {
     };
   }, [renderFrame, replay, startAnimation, stopAnimation]);
 
+  // Mouse hover handlers
+  const handleMouseMove = (e) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !data?.days) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const width = parseFloat(canvas.style.width) || canvas.width;
+    const height = parseFloat(canvas.style.height) || canvas.height;
+    const weeks = data.weeksCount || 53;
+    const marginX = Math.max(16, width * 0.038);
+    const usableW = width - marginX * 2;
+    const stepX = usableW / (weeks + 1.2);
+    const boxW = Math.max(2.4, stepX * 0.68);
+    const slantX = Math.max(1.4, stepX * 0.28);
+    const slantY = Math.max(1.8, slantX * 1.15);
+
+    const rows = 7;
+    const maxTowerH = Math.min(height * 0.42, 85);
+    const heightScale = maxTowerH / Math.sqrt(Math.max(...(data.counts || [1])));
+    const baseTileH = Math.max(1.6, Math.min(3, height * 0.012));
+    const stepY = Math.max(4.8, (height * 0.36) / (rows - 0.5));
+    const originY = Math.max(maxTowerH + 54, height * 0.46);
+
+    let found = null;
+    for (let r = rows - 1; r >= 0; r--) {
+      for (let c = weeks - 1; c >= 0; c--) {
+        const cell = data.days.find((d) => d.weekIndex === c && d.dayIndex === r);
+        if (!cell) continue;
+
+        const count = cell.count;
+        const targetH = count === 0 ? baseTileH : baseTileH + Math.sqrt(count) * heightScale;
+        const x = marginX + c * stepX;
+        const y = originY + r * stepY;
+
+        if (mx >= x && mx <= x + boxW + slantX && my >= y - targetH - slantY && my <= y) {
+          found = cell;
+          break;
+        }
+      }
+      if (found) break;
+    }
+
+    if (found !== hoveredDayRef.current) {
+      hoveredDayRef.current = found;
+      canvas.style.cursor = found ? 'pointer' : 'default';
+      const elapsed = startTimeRef.current ? performance.now() - startTimeRef.current : Infinity;
+      renderFrame(elapsed);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (hoveredDayRef.current !== null) {
+      hoveredDayRef.current = null;
+      if (canvasRef.current) canvasRef.current.style.cursor = 'default';
+      const elapsed = startTimeRef.current ? performance.now() - startTimeRef.current : Infinity;
+      renderFrame(elapsed);
+    }
+  };
+
   return (
     <div
       ref={containerRef}
-      className={`relative w-full overflow-hidden rounded-xl border border-white/10 bg-[#121212]/90 backdrop-blur-md shadow-2xl ${className}`}
+      className={`relative w-full overflow-hidden rounded-xl border border-[#d0d7de] bg-white shadow-md ${className}`}
       style={{ minHeight: '260px' }}
     >
       <canvas
         ref={canvasRef}
         role="img"
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         aria-label={`GitHub Skyline contribution graph for ${data?.username || 'user'}`}
         className="block w-full h-full"
       />
 
-      {/* Small Replay Button */}
+      {/* Small Replay Button in Light Mode */}
       <button
         type="button"
         onClick={replay}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={() => setIsBtnHovered(true)}
+        onMouseLeave={() => setIsBtnHovered(false)}
         aria-label="Replay animation"
-        className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-mono font-medium transition-all duration-200 cursor-pointer"
+        className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-mono font-semibold transition-all duration-150 cursor-pointer"
         style={{
-          backgroundColor: isHovered ? 'rgba(64, 196, 99, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-          borderColor: isHovered ? 'rgba(64, 196, 99, 0.5)' : 'rgba(255, 255, 255, 0.12)',
-          color: isHovered ? '#ffffff' : '#e0e0e0',
+          backgroundColor: isBtnHovered ? '#f3f4f6' : 'rgba(255, 255, 255, 0.9)',
+          borderColor: isBtnHovered ? '#1a7f37' : '#d0d7de',
+          color: isBtnHovered ? '#1a7f37' : '#24292f',
+          boxShadow: '0 1px 3px rgba(31, 35, 40, 0.08)',
           backdropFilter: 'blur(8px)',
           WebkitBackdropFilter: 'blur(8px)',
         }}

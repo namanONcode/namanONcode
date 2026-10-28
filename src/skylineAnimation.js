@@ -1,34 +1,19 @@
 /**
  * Pure drawing function for GitHub Skyline Contribution Graph in Oblique Projection.
+ * Light Mode Theme with Hover Interactivity.
  * 
- * Signature: draw(ctx, w, h, t)
+ * Signature: draw(ctx, w, h, t, hoveredDay)
  * 
  * - Oblique projection: front, top, and side faces for each daily contribution box.
  * - Height: proportional to Math.sqrt(count).
  * - Animation: wave rising front row (Saturday) to back row (Sunday).
  * - Leader line: animates to the best day with callout badge after the wave completes.
- * - Colours: GitHub greens (#ebedf0, #9be9a8, #40c463, #30a14e, #216e39).
+ * - Colours: Light mode GitHub greens (#ebedf0, #9be9a8, #40c463, #30a14e, #216e39).
+ * - Interactivity: renders hovered day highlight and floating tooltip when hoveredDay is passed.
  * - Pure function: t = milliseconds since start; t = Infinity draws the completed state.
  */
 
-// Shading utility for oblique 3D faces
-function hexToRgb(hex) {
-  const clean = hex.replace('#', '');
-  const bigint = parseInt(clean, 16);
-  return {
-    r: (bigint >> 16) & 255,
-    g: (bigint >> 8) & 255,
-    b: bigint & 255,
-  };
-}
-
-function shadeRgb({ r, g, b }, factor) {
-  return `rgb(${Math.round(Math.max(0, Math.min(255, r * factor)))}, ${Math.round(
-    Math.max(0, Math.min(255, g * factor))
-  )}, ${Math.round(Math.max(0, Math.min(255, b * factor)))})`;
-}
-
-// GitHub contribution greens
+// GitHub contribution greens in Light Mode
 const COLOR_PALETTE = [
   '#ebedf0', // Level 0: empty days
   '#9be9a8', // Level 1
@@ -37,27 +22,47 @@ const COLOR_PALETTE = [
   '#216e39', // Level 4
 ];
 
-const PRECOMPUTED_SHADES = COLOR_PALETTE.map((hex, index) => {
-  const rgb = hexToRgb(hex);
-  if (index === 0) {
-    return {
-      top: hex,
-      front: '#d6d9dc',
-      side: '#bec1c5',
-      stroke: 'rgba(0, 0, 0, 0.08)',
-    };
-  }
-  return {
-    top: hex,
-    front: shadeRgb(rgb, 0.82),
-    side: shadeRgb(rgb, 0.65),
-    stroke: 'rgba(0, 0, 0, 0.18)',
-  };
-});
+const PRECOMPUTED_SHADES = [
+  // Level 0: empty days
+  {
+    top: '#ebedf0',
+    front: '#d0d7de',
+    side: '#bcc3ce',
+    stroke: 'rgba(27, 31, 36, 0.12)',
+  },
+  // Level 1
+  {
+    top: '#9be9a8',
+    front: '#7ad488',
+    side: '#62bf71',
+    stroke: 'rgba(27, 31, 36, 0.12)',
+  },
+  // Level 2
+  {
+    top: '#40c463',
+    front: '#31a953',
+    side: '#268c42',
+    stroke: 'rgba(27, 31, 36, 0.14)',
+  },
+  // Level 3
+  {
+    top: '#30a14e',
+    front: '#258840',
+    side: '#1c6f33',
+    stroke: 'rgba(27, 31, 36, 0.16)',
+  },
+  // Level 4
+  {
+    top: '#216e39',
+    front: '#19582d',
+    side: '#124522',
+    stroke: 'rgba(27, 31, 36, 0.18)',
+  },
+];
 
 // Cubic overshoot easing for a satisfying physical spring when towers rise
 function easeOutBack(x) {
-  const c1 = 1.5;
+  const c1 = 1.4;
   const c3 = c1 + 1;
   return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2);
 }
@@ -72,7 +77,7 @@ function formatDate(dateStr) {
 /**
  * Creates the draw function bound to GitHub data.
  * @param {Object} data Loaded data/github.json
- * @returns {(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) => void}
+ * @returns {(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, hoveredDay?: Object) => void}
  */
 export function createSkylineDraw(data) {
   const weeks = data.weeksCount || 53;
@@ -93,42 +98,42 @@ export function createSkylineDraw(data) {
     };
   }
 
-  return function draw(ctx, w, h, t) {
+  return function draw(ctx, w, h, t, hoveredDay = null) {
     ctx.clearRect(0, 0, w, h);
 
     if (w <= 0 || h <= 0) return;
 
-    const isReduced = t === Infinity || t >= 5000;
+    const isReduced = t === Infinity || t >= 4500;
 
     // Responsive sizing and spacing
-    const marginX = Math.max(14, w * 0.04);
+    const marginX = Math.max(16, w * 0.038);
     const usableW = w - marginX * 2;
     const stepX = usableW / (weeks + 1.2);
-    const boxW = Math.max(2.2, stepX * 0.68);
-    const slantX = Math.max(1.2, stepX * 0.28);
-    const slantY = Math.max(1.6, slantX * 1.15);
+    const boxW = Math.max(2.4, stepX * 0.68);
+    const slantX = Math.max(1.4, stepX * 0.28);
+    const slantY = Math.max(1.8, slantX * 1.15);
 
     // Vertical spacing
     const rows = 7;
-    const maxTowerH = Math.min(h * 0.42, 90);
+    const maxTowerH = Math.min(h * 0.42, 85);
     const heightScale = maxTowerH / Math.sqrt(maxCount);
-    const baseTileH = Math.max(1.5, Math.min(3, h * 0.012));
+    const baseTileH = Math.max(1.6, Math.min(3, h * 0.012));
 
-    const stepY = Math.max(4.5, (h * 0.38) / (rows - 0.5));
-    // Position back row (row 0 = Sunday) so max tower has room on top
-    const originY = Math.max(maxTowerH + 60, h * 0.44);
+    const stepY = Math.max(4.8, (h * 0.36) / (rows - 0.5));
+    // Position back row (row 0 = Sunday) so max tower has breathing room
+    const originY = Math.max(maxTowerH + 54, h * 0.46);
 
     let bestDayScreenPos = null;
-    let bestDayBoxHeight = 0;
+    let hoveredScreenPos = null;
 
     // Wave parameters:
     // Wave starts at front row (row 6: Saturday) and moves to back row (row 0: Sunday)
-    const waveStartMs = 120;
-    const rowDelayMs = 130;
-    const colDelayMs = 260;
-    const riseDurationMs = 520;
+    const waveStartMs = 100;
+    const rowDelayMs = 120;
+    const colDelayMs = 240;
+    const riseDurationMs = 500;
 
-    // Painter's algorithm: draw from back row (r = 0) to front row (r = 6)
+    // Painter's algorithm: draw from back row (r = 0, Sunday) to front row (r = 6, Saturday)
     for (let r = 0; r < rows; r++) {
       const rowFromFront = 6 - r; // row 6 is 0 (first), row 0 is 6 (last)
       const rowList = grid[r] || [];
@@ -159,15 +164,16 @@ export function createSkylineDraw(data) {
         }
 
         // Current height for this box
-        const hBox = count === 0 ? baseTileH : baseTileH + (targetH - baseTileH) * Math.max(0, Math.min(1.08, progress));
+        const hBox = count === 0 ? baseTileH : baseTileH + (targetH - baseTileH) * Math.max(0, Math.min(1.06, progress));
 
         // Screen coordinates of base front-left corner
         const x = marginX + c * stepX;
         const y = originY + r * stepY;
 
-        // If this is the best day, record top coordinates for leader line
+        const isHovered = hoveredDay && hoveredDay.date === cell.date;
+
+        // Record best day coordinates
         if (cell.date === bestDay.date) {
-          bestDayBoxHeight = hBox;
           bestDayScreenPos = {
             topCenterX: x + boxW / 2 + slantX / 2,
             topCenterY: y - hBox - slantY / 2,
@@ -178,8 +184,23 @@ export function createSkylineDraw(data) {
           };
         }
 
-        ctx.lineWidth = 0.6;
-        ctx.strokeStyle = shades.stroke;
+        if (isHovered) {
+          hoveredScreenPos = {
+            x,
+            y,
+            boxW,
+            hBox,
+            slantX,
+            slantY,
+            cell,
+            topCenterX: x + boxW / 2 + slantX / 2,
+            topCenterY: y - hBox - slantY / 2,
+          };
+        }
+
+        // Draw facets
+        ctx.lineWidth = isHovered ? 1.2 : 0.5;
+        ctx.strokeStyle = isHovered ? '#1f2328' : shades.stroke;
 
         // 1. Draw Front face (facing camera)
         ctx.fillStyle = shades.front;
@@ -210,11 +231,10 @@ export function createSkylineDraw(data) {
       }
     }
 
-    // Leader Line to Best Day
-    // "rising in a wave front row to back, then a leader line to the best day."
+    // Leader Line and Callout Badge to Best Day
     if (bestDayScreenPos && bestDay.count > 0) {
-      const leaderStartMs = waveStartMs + 6 * rowDelayMs + colDelayMs + riseDurationMs + 80;
-      const leaderDurationMs = 600;
+      const leaderStartMs = waveStartMs + 6 * rowDelayMs + colDelayMs + riseDurationMs + 60;
+      const leaderDurationMs = 550;
 
       let leaderProgress = 1.0;
       if (!isReduced) {
@@ -231,39 +251,39 @@ export function createSkylineDraw(data) {
       if (leaderProgress > 0) {
         const { topCenterX, topCenterY } = bestDayScreenPos;
 
-        // Leader line geometry:
-        // Anchor point -> upward line -> horizontal line to callout badge
-        const stemHeight = Math.max(22, Math.min(38, topCenterY - 40));
+        // Leader line geometry
+        const stemHeight = Math.max(22, Math.min(36, topCenterY - 34));
         const anchorY = topCenterY;
-        const cornerY = Math.max(34, topCenterY - stemHeight);
+        const cornerY = Math.max(28, topCenterY - stemHeight);
 
-        // Decide badge direction: if best day is on right half, put badge on left; else right
+        // Place badge to the left if in right half of screen
         const placeOnLeft = topCenterX > w * 0.55;
-        const badgeOffset = placeOnLeft ? -18 : 18;
-        const cornerX = topCenterX;
-        const endX = cornerX + badgeOffset;
+        const badgeW = 164;
+        const badgeH = 42;
+        const badgeOffset = placeOnLeft ? -24 : 24;
+        const endX = topCenterX + badgeOffset;
 
         ctx.save();
 
-        // Glowing anchor point on best day
-        ctx.fillStyle = '#40c463';
-        ctx.shadowColor = 'rgba(64, 196, 99, 0.7)';
-        ctx.shadowBlur = 8;
+        // Glowing anchor dot on best day
+        ctx.fillStyle = '#30a14e';
+        ctx.shadowColor = 'rgba(48, 161, 78, 0.4)';
+        ctx.shadowBlur = 6;
         ctx.beginPath();
-        ctx.arc(topCenterX, anchorY, 2.8, 0, Math.PI * 2);
+        ctx.arc(topCenterX, anchorY, 3, 0, Math.PI * 2);
         ctx.fill();
 
         ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.2;
         ctx.beginPath();
-        ctx.arc(topCenterX, anchorY, 2.8, 0, Math.PI * 2);
+        ctx.arc(topCenterX, anchorY, 3, 0, Math.PI * 2);
         ctx.stroke();
 
         // Draw leader line progressively
-        ctx.shadowColor = 'rgba(64, 196, 99, 0.4)';
-        ctx.shadowBlur = 4;
-        ctx.strokeStyle = '#30a14e';
-        ctx.lineWidth = 1.4;
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+        ctx.shadowBlur = 3;
+        ctx.strokeStyle = '#216e39';
+        ctx.lineWidth = 1.6;
 
         const totalDist = stemHeight + Math.abs(badgeOffset);
         const currentDist = totalDist * leaderProgress;
@@ -282,69 +302,96 @@ export function createSkylineDraw(data) {
         ctx.stroke();
         ctx.restore();
 
-        // Callout Badge: fades and scales in as leader line reaches corner
-        if (leaderProgress >= 0.6) {
-          const badgeProgress = isReduced ? 1 : Math.min(1, (leaderProgress - 0.6) / 0.4);
-          const badgeAlpha = badgeProgress;
-
+        // Callout Badge in Light Mode
+        if (leaderProgress >= 0.55) {
+          const badgeProgress = isReduced ? 1 : Math.min(1, (leaderProgress - 0.55) / 0.45);
           ctx.save();
-          ctx.globalAlpha = badgeAlpha;
+          ctx.globalAlpha = badgeProgress;
 
-          // Site fonts: JetBrains Mono and Inter
           const countText = `${bestDay.count} contributions`;
-          const dateText = formatDate(bestDay.date);
+          const dateText = `${formatDate(bestDay.date)} (Best Day)`;
 
-          const fontSizePrimary = Math.max(10, Math.min(12, w * 0.024));
-          const fontSizeSecondary = Math.max(9, Math.min(10.5, w * 0.02));
-
-          ctx.font = `600 ${fontSizePrimary}px "JetBrains Mono", monospace`;
-          const countMetrics = ctx.measureText(countText);
-
-          ctx.font = `400 ${fontSizeSecondary}px "Inter", sans-serif`;
-          const dateMetrics = ctx.measureText(dateText);
-
-          const badgeW = Math.max(countMetrics.width, dateMetrics.width) + 24;
-          const badgeH = fontSizePrimary + fontSizeSecondary + 14;
+          const fontSizePrimary = Math.max(10, Math.min(11.5, w * 0.022));
+          const fontSizeSecondary = Math.max(8.5, Math.min(9.5, w * 0.018));
 
           let badgeX = placeOnLeft ? endX - badgeW : endX;
-          // Keep badge within screen bounds
           badgeX = Math.max(marginX, Math.min(w - marginX - badgeW, badgeX));
           const badgeY = cornerY - badgeH / 2;
 
-          // Badge pill container
-          ctx.fillStyle = 'rgba(18, 18, 18, 0.92)';
-          ctx.strokeStyle = 'rgba(64, 196, 99, 0.55)';
-          ctx.lineWidth = 1;
-          ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-          ctx.shadowBlur = 10;
+          // Light Mode Badge card container
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = 'rgba(48, 161, 78, 0.5)';
+          ctx.lineWidth = 1.2;
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.08)';
+          ctx.shadowBlur = 12;
           ctx.shadowOffsetY = 3;
 
-          const radius = 6;
           ctx.beginPath();
-          ctx.roundRect(badgeX, badgeY, badgeW, badgeH, radius);
+          ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 8);
           ctx.fill();
           ctx.stroke();
 
-          // Green accent pill / dot
+          // Green accent indicator
           ctx.shadowBlur = 0;
           ctx.shadowOffsetY = 0;
-          ctx.fillStyle = '#40c463';
+          ctx.fillStyle = '#30a14e';
           ctx.beginPath();
-          ctx.arc(badgeX + 10, badgeY + badgeH / 2 - 4, 3, 0, Math.PI * 2);
+          ctx.arc(badgeX + 13, badgeY + 16, 3.5, 0, Math.PI * 2);
           ctx.fill();
 
-          // Text labels
-          ctx.fillStyle = '#ffffff';
+          // Text labels in Light Mode
+          ctx.fillStyle = '#1f2328';
           ctx.font = `600 ${fontSizePrimary}px "JetBrains Mono", monospace`;
-          ctx.fillText(countText, badgeX + 18, badgeY + fontSizePrimary + 4);
+          ctx.fillText(countText, badgeX + 24, badgeY + 19);
 
-          ctx.fillStyle = '#9be9a8';
-          ctx.font = `400 ${fontSizeSecondary}px "Inter", sans-serif`;
-          ctx.fillText(dateText, badgeX + 18, badgeY + fontSizePrimary + fontSizeSecondary + 8);
+          ctx.fillStyle = '#1a7f37';
+          ctx.font = `500 ${fontSizeSecondary}px "Inter", sans-serif`;
+          ctx.fillText(dateText, badgeX + 24, badgeY + 33);
 
           ctx.restore();
         }
       }
+    }
+
+    // Hover Tooltip
+    if (hoveredScreenPos) {
+      const { topCenterX, topCenterY, cell } = hoveredScreenPos;
+      const count = cell.count;
+      const dateStr = formatDate(cell.date);
+      const tipText = `${dateStr}: ${count} contribution${count === 1 ? '' : 's'}`;
+
+      ctx.save();
+      ctx.font = '500 11px "JetBrains Mono", monospace';
+      const textMetrics = ctx.measureText(tipText);
+      const tipW = textMetrics.width + 18;
+      const tipH = 28;
+
+      let tipX = topCenterX - tipW / 2;
+      tipX = Math.max(10, Math.min(w - tipW - 10, tipX));
+      const tipY = Math.max(8, topCenterY - tipH - 10);
+
+      // Tooltip box
+      ctx.fillStyle = '#1f2328';
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 2;
+      ctx.beginPath();
+      ctx.roundRect(tipX, tipY, tipW, tipH, 6);
+      ctx.fill();
+
+      // Tooltip arrow
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+      ctx.beginPath();
+      ctx.moveTo(topCenterX - 4, tipY + tipH);
+      ctx.lineTo(topCenterX, tipY + tipH + 4);
+      ctx.lineTo(topCenterX + 4, tipY + tipH);
+      ctx.fill();
+
+      // Tooltip text
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(tipText, tipX + 9, tipY + 18);
+      ctx.restore();
     }
   };
 }

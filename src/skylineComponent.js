@@ -1,9 +1,12 @@
 /**
  * Client component for GitHub Skyline Contribution Graph animation.
+ * Light Mode Theme with Mouse Hover Interactivity.
  * 
  * Requirements satisfied:
  * - One canvas that fills its box at devicePixelRatio (max 2).
- * - Pure function draw(ctx, w, h, t) where t is milliseconds since start.
+ * - Pure function draw(ctx, w, h, t, hoveredDay) where t is milliseconds since start.
+ * - Interactive hover: highlights the tower and displays dynamic tooltip.
+ * - Light mode styling with clean GitHub theme.
  * - Replay button resets t.
  * - prefers-reduced-motion draws t = Infinity.
  * - Starts playing when 40% in view (IntersectionObserver).
@@ -31,6 +34,7 @@ export class SkylineComponent {
     this.hasStarted = false;
     this.isVisible = false;
     this.prefersReducedMotion = false;
+    this.hoveredDay = null;
 
     this.width = 0;
     this.height = 0;
@@ -56,12 +60,12 @@ export class SkylineComponent {
     this.container.appendChild(this.canvas);
     this.ctx = this.canvas.getContext('2d');
 
-    // Replay button
+    // Replay button in Light Mode
     this.replayBtn = document.createElement('button');
     this.replayBtn.type = 'button';
     this.replayBtn.className = 'skyline-replay-btn';
     this.replayBtn.innerHTML = `
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
         <path d="M3 3v5h5"/>
       </svg>
@@ -71,7 +75,7 @@ export class SkylineComponent {
     this.replayBtn.addEventListener('click', () => this.replay());
     this.container.appendChild(this.replayBtn);
 
-    // Apply styles to replay button
+    // Apply Light Mode styles to replay button
     Object.assign(this.replayBtn.style, {
       position: 'absolute',
       top: '12px',
@@ -79,33 +83,40 @@ export class SkylineComponent {
       display: 'inline-flex',
       alignItems: 'center',
       gap: '6px',
-      padding: '6px 12px',
-      background: 'rgba(255, 255, 255, 0.06)',
+      padding: '5px 12px',
+      background: 'rgba(255, 255, 255, 0.9)',
       backdropFilter: 'blur(8px)',
       webkitBackdropFilter: 'blur(8px)',
-      border: '1px solid rgba(255, 255, 255, 0.12)',
-      borderRadius: '8px',
-      color: '#e0e0e0',
+      border: '1px solid #d0d7de',
+      borderRadius: '6px',
+      color: '#24292f',
+      boxShadow: '0 1px 3px rgba(31, 35, 40, 0.08)',
       fontFamily: '"JetBrains Mono", monospace, sans-serif',
-      fontSize: '12px',
-      fontWeight: '500',
+      fontSize: '11.5px',
+      fontWeight: '600',
       cursor: 'pointer',
-      transition: 'all 0.2s ease',
+      transition: 'all 0.18s ease',
       zIndex: '10',
       outline: 'none',
     });
 
     this.replayBtn.addEventListener('mouseenter', () => {
-      this.replayBtn.style.background = 'rgba(64, 196, 99, 0.18)';
-      this.replayBtn.style.borderColor = 'rgba(64, 196, 99, 0.5)';
-      this.replayBtn.style.color = '#ffffff';
+      this.replayBtn.style.background = '#f3f4f6';
+      this.replayBtn.style.borderColor = '#1a7f37';
+      this.replayBtn.style.color = '#1a7f37';
     });
 
     this.replayBtn.addEventListener('mouseleave', () => {
-      this.replayBtn.style.background = 'rgba(255, 255, 255, 0.06)';
-      this.replayBtn.style.borderColor = 'rgba(255, 255, 255, 0.12)';
-      this.replayBtn.style.color = '#e0e0e0';
+      this.replayBtn.style.background = 'rgba(255, 255, 255, 0.9)';
+      this.replayBtn.style.borderColor = '#d0d7de';
+      this.replayBtn.style.color = '#24292f';
     });
+
+    // Mouse hover interactivity
+    this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+    this.canvas.addEventListener('mouseleave', () => this.handleMouseLeave());
+    this.canvas.addEventListener('touchmove', (e) => this.handleTouch(e), { passive: true });
+    this.canvas.addEventListener('touchend', () => this.handleMouseLeave());
 
     // Check prefers-reduced-motion
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -156,7 +167,6 @@ export class SkylineComponent {
       const elapsed = performance.now() - this.startTime;
       this.renderFrame(elapsed);
     } else {
-      // Idle state before view
       this.renderFrame(0);
     }
   }
@@ -196,6 +206,97 @@ export class SkylineComponent {
     this.intersectionObserver.observe(this.container);
   }
 
+  handleMouseMove(e) {
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    const hit = this.findDayAt(mx, my);
+    if (hit !== this.hoveredDay) {
+      this.hoveredDay = hit;
+      this.canvas.style.cursor = hit ? 'pointer' : 'default';
+      this.redrawCurrent();
+    }
+  }
+
+  handleTouch(e) {
+    if (!e.touches || e.touches.length === 0) return;
+    const touch = e.touches[0];
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = touch.clientX - rect.left;
+    const my = touch.clientY - rect.top;
+
+    const hit = this.findDayAt(mx, my);
+    if (hit !== this.hoveredDay) {
+      this.hoveredDay = hit;
+      this.redrawCurrent();
+    }
+  }
+
+  handleMouseLeave() {
+    if (this.hoveredDay !== null) {
+      this.hoveredDay = null;
+      this.canvas.style.cursor = 'default';
+      this.redrawCurrent();
+    }
+  }
+
+  findDayAt(mx, my) {
+    const days = this.githubData?.days;
+    if (!days || days.length === 0 || this.width === 0 || this.height === 0) return null;
+
+    const weeks = this.githubData.weeksCount || 53;
+    const marginX = Math.max(16, this.width * 0.038);
+    const usableW = this.width - marginX * 2;
+    const stepX = usableW / (weeks + 1.2);
+    const boxW = Math.max(2.4, stepX * 0.68);
+    const slantX = Math.max(1.4, stepX * 0.28);
+    const slantY = Math.max(1.8, slantX * 1.15);
+
+    const rows = 7;
+    const maxTowerH = Math.min(this.height * 0.42, 85);
+    const heightScale = maxTowerH / Math.sqrt(Math.max(...(this.githubData.counts || [1])));
+    const baseTileH = Math.max(1.6, Math.min(3, this.height * 0.012));
+    const stepY = Math.max(4.8, (this.height * 0.36) / (rows - 0.5));
+    const originY = Math.max(maxTowerH + 54, this.height * 0.46);
+
+    // Hit-test in reverse drawing order (front row to back row, right to left)
+    for (let r = rows - 1; r >= 0; r--) {
+      for (let c = weeks - 1; c >= 0; c--) {
+        const index = c * 7 + r;
+        const cell = days.find((d) => d.weekIndex === c && d.dayIndex === r);
+        if (!cell) continue;
+
+        const count = cell.count;
+        const targetH = count === 0 ? baseTileH : baseTileH + Math.sqrt(count) * heightScale;
+        const x = marginX + c * stepX;
+        const y = originY + r * stepY;
+
+        // Check if point is inside box's bounds
+        const minX = x;
+        const maxX = x + boxW + slantX;
+        const minY = y - targetH - slantY;
+        const maxY = y;
+
+        if (mx >= minX && mx <= maxX && my >= minY && my <= maxY) {
+          return cell;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  redrawCurrent() {
+    if (this.prefersReducedMotion || (this.hasStarted && performance.now() - this.startTime >= 4500)) {
+      this.renderFrame(Infinity);
+    } else if (this.hasStarted && this.startTime !== null) {
+      this.renderFrame(performance.now() - this.startTime);
+    } else {
+      this.renderFrame(0);
+    }
+  }
+
   replay() {
     if (this.prefersReducedMotion) {
       this.renderFrame(Infinity);
@@ -217,7 +318,6 @@ export class SkylineComponent {
       const elapsed = now - (this.startTime || now);
       this.renderFrame(elapsed);
 
-      // Stop rAF loop after animation fully settles (~4.5s) to save power/battery
       if (elapsed < 4500) {
         this.rafId = requestAnimationFrame(loop);
       } else {
@@ -238,7 +338,7 @@ export class SkylineComponent {
 
   renderFrame(t) {
     if (!this.ctx || this.width === 0 || this.height === 0) return;
-    this.draw(this.ctx, this.width, this.height, t);
+    this.draw(this.ctx, this.width, this.height, t, this.hoveredDay);
   }
 
   destroy() {

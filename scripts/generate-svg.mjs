@@ -30,7 +30,7 @@ function shadeRgb({ r, g, b }, factor) {
   )}, ${Math.round(Math.max(0, Math.min(255, b * factor)))})`;
 }
 
-// GitHub contribution greens
+// GitHub contribution greens in Light Mode
 const COLOR_PALETTE = [
   '#ebedf0', // Level 0: empty days
   '#9be9a8', // Level 1
@@ -39,23 +39,43 @@ const COLOR_PALETTE = [
   '#216e39', // Level 4
 ];
 
-const PRECOMPUTED_SHADES = COLOR_PALETTE.map((hex, index) => {
-  const rgb = hexToRgb(hex);
-  if (index === 0) {
-    return {
-      top: hex,
-      front: '#d6d9dc',
-      side: '#bec1c5',
-      stroke: 'rgba(0, 0, 0, 0.08)',
-    };
-  }
-  return {
-    top: hex,
-    front: shadeRgb(rgb, 0.82),
-    side: shadeRgb(rgb, 0.65),
-    stroke: 'rgba(0, 0, 0, 0.16)',
-  };
-});
+const PRECOMPUTED_SHADES = [
+  // Level 0: empty days
+  {
+    top: '#ebedf0',
+    front: '#d0d7de',
+    side: '#bcc3ce',
+    stroke: 'rgba(27, 31, 36, 0.12)',
+  },
+  // Level 1
+  {
+    top: '#9be9a8',
+    front: '#7ad488',
+    side: '#62bf71',
+    stroke: 'rgba(27, 31, 36, 0.12)',
+  },
+  // Level 2
+  {
+    top: '#40c463',
+    front: '#31a953',
+    side: '#268c42',
+    stroke: 'rgba(27, 31, 36, 0.14)',
+  },
+  // Level 3
+  {
+    top: '#30a14e',
+    front: '#258840',
+    side: '#1c6f33',
+    stroke: 'rgba(27, 31, 36, 0.16)',
+  },
+  // Level 4
+  {
+    top: '#216e39',
+    front: '#19582d',
+    side: '#124522',
+    stroke: 'rgba(27, 31, 36, 0.18)',
+  },
+];
 
 function formatDate(dateStr) {
   if (!dateStr) return '';
@@ -65,8 +85,8 @@ function formatDate(dateStr) {
 }
 
 function generateSvg() {
-  const svgWidth = 860;
-  const svgHeight = 310;
+  const svgWidth = 880;
+  const svgHeight = 330;
 
   const weeks = data.weeksCount || 53;
   const days = data.days || [];
@@ -86,7 +106,7 @@ function generateSvg() {
     };
   }
 
-  const marginX = 28;
+  const marginX = 30;
   const usableW = svgWidth - marginX * 2;
   const stepX = usableW / (weeks + 1.2);
   const boxW = Math.max(3.2, stepX * 0.68);
@@ -94,15 +114,14 @@ function generateSvg() {
   const slantY = Math.max(2.2, slantX * 1.15);
 
   const rows = 7;
-  const maxTowerH = 88;
+  const maxTowerH = 82;
   const heightScale = maxTowerH / Math.sqrt(maxCount);
   const baseTileH = 2.5;
 
   const stepY = 14;
-  const originY = 145;
+  const originY = 168;
 
   let bestDayCoords = null;
-
   let boxesSvg = '';
 
   // Painter's algorithm: draw from back row (r = 0, Sunday) to front row (r = 6, Saturday)
@@ -122,7 +141,7 @@ function generateSvg() {
       const targetH = count === 0 ? baseTileH : baseTileH + Math.sqrt(count) * heightScale;
 
       // Wave animation delay: front row (row 6) rises first, then row 5..0
-      const delaySec = (0.12 + rowFromFront * 0.14 + (c / weeks) * 0.28).toFixed(3);
+      const delaySec = (0.1 + rowFromFront * 0.12 + (c / weeks) * 0.25).toFixed(3);
 
       const x = +(marginX + c * stepX).toFixed(2);
       const y = +(originY + r * stepY).toFixed(2);
@@ -147,8 +166,11 @@ function generateSvg() {
       // Top face
       const topPath = `M ${x} ${+(y - h).toFixed(2)} L ${+(x + boxW).toFixed(2)} ${+(y - h).toFixed(2)} L ${+(x + boxW + slantX).toFixed(2)} ${+(y - h - slantY).toFixed(2)} L ${+(x + slantX).toFixed(2)} ${+(y - h - slantY).toFixed(2)} Z`;
 
+      const tooltipText = `${formatDate(cell.date)}: ${count} contribution${count === 1 ? '' : 's'}`;
+
       boxesSvg += `
-        <g class="box" style="animation-delay: ${delaySec}s; transform-origin: ${x}px ${y}px;">
+        <g class="box" style="animation-delay: ${delaySec}s; transform-origin: ${x}px ${y}px;" data-count="${count}" data-date="${cell.date}">
+          <title>${tooltipText}</title>
           <path d="${frontPath}" fill="${shades.front}" stroke="${shades.stroke}" stroke-width="0.5" />
           <path d="${sidePath}" fill="${shades.side}" stroke="${shades.stroke}" stroke-width="0.5" />
           <path d="${topPath}" fill="${shades.top}" stroke="${shades.stroke}" stroke-width="0.5" />
@@ -160,33 +182,50 @@ function generateSvg() {
   let leaderSvg = '';
   if (bestDayCoords && bestDay.count > 0) {
     const { topCenterX, topCenterY } = bestDayCoords;
-    const stemH = 32;
+    const stemH = 36;
     const cornerY = +(topCenterY - stemH).toFixed(2);
+    
+    // Position badge on the left of the best day column
     const placeOnLeft = topCenterX > svgWidth * 0.55;
     const badgeW = 168;
-    const badgeH = 46;
-    const badgeOffset = placeOnLeft ? -24 : 24;
-    const endX = +(topCenterX + badgeOffset).toFixed(2);
-    const badgeX = placeOnLeft ? +(endX - badgeW).toFixed(2) : endX;
-    const badgeY = +(cornerY - badgeH / 2).toFixed(2);
+    const badgeH = 44;
+    
+    // Leader line connects directly to badge edge
+    let endX;
+    let badgeX;
+    let badgeY = +(cornerY - badgeH / 2).toFixed(2);
+
+    if (placeOnLeft) {
+      endX = +(topCenterX - 28).toFixed(2);
+      badgeX = +(endX - badgeW).toFixed(2);
+    } else {
+      endX = +(topCenterX + 28).toFixed(2);
+      badgeX = endX;
+    }
 
     const linePath = `M ${topCenterX} ${topCenterY} L ${topCenterX} ${cornerY} L ${endX} ${cornerY}`;
 
     leaderSvg = `
       <!-- Leader Line & Callout Badge -->
       <g class="leader-group">
-        <!-- Glowing anchor on best day -->
-        <circle cx="${topCenterX}" cy="${topCenterY}" r="3.2" fill="#40c463" stroke="#ffffff" stroke-width="1.2" class="anchor-glow" />
+        <!-- Glowing anchor ring on top of best day tower -->
+        <circle cx="${topCenterX}" cy="${topCenterY}" r="3.2" fill="#30a14e" stroke="#ffffff" stroke-width="1.4" class="anchor-glow" />
         
-        <!-- Progressive leader line -->
-        <path d="${linePath}" fill="none" stroke="#40c463" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="leader-line" />
+        <!-- Progressive leader line connecting to badge edge -->
+        <path d="${linePath}" fill="none" stroke="#216e39" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="leader-line" />
         
-        <!-- Callout Badge -->
-        <g class="badge-card" transform="translate(${badgeX}, ${badgeY})">
-          <rect width="${badgeW}" height="${badgeH}" rx="8" fill="#161b22" stroke="rgba(64, 196, 99, 0.6)" stroke-width="1.2" />
-          <circle cx="14" cy="18" r="4" fill="#40c463" />
-          <text x="26" y="21" fill="#ffffff" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="11.5" font-weight="600">${bestDay.count} contributions</text>
-          <text x="26" y="36" fill="#9be9a8" font-family="'Inter', -apple-system, sans-serif" font-size="9.5">${formatDate(bestDay.date)} (Best Day)</text>
+        <!-- Anchored Callout Badge in Light Mode -->
+        <g transform="translate(${badgeX}, ${badgeY})">
+          <g class="badge-card">
+            <!-- Filter drop shadow -->
+            <rect width="${badgeW}" height="${badgeH}" rx="8" fill="#ffffff" stroke="rgba(48, 161, 78, 0.45)" stroke-width="1.2" filter="url(#shadow)" />
+            <!-- Green indicator dot -->
+            <circle cx="15" cy="17" r="4" fill="#30a14e" />
+            <!-- Main label -->
+            <text x="27" y="20" fill="#1f2328" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="11.5" font-weight="600">${bestDay.count} contributions</text>
+            <!-- Secondary date label -->
+            <text x="27" y="34" fill="#1a7f37" font-family="'Inter', -apple-system, sans-serif" font-size="9.5" font-weight="500">${formatDate(bestDay.date)} (Best Day)</text>
+          </g>
         </g>
       </g>`;
   }
@@ -197,21 +236,28 @@ function generateSvg() {
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;600;700&amp;display=swap');
       
-      .bg {
-        fill: #0d1117;
-      }
-      
       .box {
         animation: waveRise 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+        cursor: pointer;
+        transition: filter 0.18s ease, transform 0.18s ease;
+      }
+      
+      .box:hover {
+        filter: brightness(1.18) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.22));
+      }
+
+      .box:hover path {
+        stroke: #1f2328;
+        stroke-width: 0.9px;
       }
       
       @keyframes waveRise {
         0% {
           opacity: 0;
-          transform: translateY(18px) scaleY(0.05);
+          transform: translateY(16px) scaleY(0.05);
         }
         70% {
-          transform: translateY(-2px) scaleY(1.06);
+          transform: translateY(-2px) scaleY(1.05);
         }
         100% {
           opacity: 1;
@@ -220,13 +266,13 @@ function generateSvg() {
       }
       
       .leader-group {
-        animation: fadeIn 0.4s ease 1.7s both;
+        animation: fadeIn 0.4s ease 1.6s both;
       }
       
       .leader-line {
-        stroke-dasharray: 140;
-        stroke-dashoffset: 140;
-        animation: drawLine 0.7s cubic-bezier(0.16, 1, 0.3, 1) 1.75s forwards;
+        stroke-dasharray: 160;
+        stroke-dashoffset: 160;
+        animation: drawLine 0.65s cubic-bezier(0.16, 1, 0.3, 1) 1.65s forwards;
       }
       
       @keyframes drawLine {
@@ -237,18 +283,18 @@ function generateSvg() {
       
       .badge-card {
         opacity: 0;
-        animation: popBadge 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) 2.1s forwards;
-        transform-origin: 0% 50%;
+        animation: popBadge 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275) 1.95s forwards;
+        transform-origin: 50% 50%;
       }
       
       @keyframes popBadge {
         0% {
           opacity: 0;
-          transform: translateY(4px) scale(0.92);
+          transform: scale(0.92);
         }
         100% {
           opacity: 1;
-          transform: translateY(0) scale(1);
+          transform: scale(1);
         }
       }
       
@@ -271,26 +317,31 @@ function generateSvg() {
         }
       }
     </style>
+
+    <filter id="shadow" x="-10%" y="-20%" width="125%" height="150%" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000000" flood-opacity="0.1" />
+      <feDropShadow dx="0" dy="1" stdDeviation="1" flood-color="#000000" flood-opacity="0.05" />
+    </filter>
   </defs>
 
-  <!-- Background Panel -->
-  <rect width="${svgWidth}" height="${svgHeight}" rx="14" fill="#0d1117" stroke="rgba(255, 255, 255, 0.08)" stroke-width="1" />
+  <!-- Light Mode Background Panel -->
+  <rect width="${svgWidth}" height="${svgHeight}" rx="14" fill="#ffffff" stroke="#d1d9e0" stroke-width="1" />
   
-  <!-- Header / Metadata -->
-  <g transform="translate(28, 28)">
-    <text x="0" y="0" fill="#e0e0e0" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="14" font-weight="600">@${data.username} / 3D Skyline Contributions</text>
-    <text x="0" y="18" fill="#8b949e" font-family="'Inter', -apple-system, sans-serif" font-size="11">${data.total.toLocaleString()} total contributions across ${data.daysCount} days (${formatDate(data.startDate)} – Present)</text>
+  <!-- Header / Metadata in Light Mode -->
+  <g transform="translate(30, 30)">
+    <text x="0" y="0" fill="#1f2328" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="14.5" font-weight="700">@${data.username} / 3D Skyline Contributions</text>
+    <text x="0" y="19" fill="#656d76" font-family="'Inter', -apple-system, sans-serif" font-size="11.5">${data.total.toLocaleString()} total contributions across ${data.daysCount} days (${formatDate(data.startDate)} – Present)</text>
   </g>
 
-  <!-- Legend -->
-  <g transform="translate(${svgWidth - 195}, 22)">
-    <text x="0" y="10" fill="#8b949e" font-family="'Inter', -apple-system, sans-serif" font-size="10">Less</text>
-    <rect x="30" y="0" width="11" height="11" rx="2" fill="#ebedf0" />
-    <rect x="45" y="0" width="11" height="11" rx="2" fill="#9be9a8" />
-    <rect x="60" y="0" width="11" height="11" rx="2" fill="#40c463" />
-    <rect x="75" y="0" width="11" height="11" rx="2" fill="#30a14e" />
-    <rect x="90" y="0" width="11" height="11" rx="2" fill="#216e39" />
-    <text x="108" y="10" fill="#8b949e" font-family="'Inter', -apple-system, sans-serif" font-size="10">More</text>
+  <!-- Legend in Light Mode -->
+  <g transform="translate(${svgWidth - 200}, 24)">
+    <text x="0" y="11" fill="#656d76" font-family="'Inter', -apple-system, sans-serif" font-size="10.5">Less</text>
+    <rect x="30" y="0" width="12" height="12" rx="2" fill="#ebedf0" stroke="rgba(27,31,36,0.15)" stroke-width="0.8" />
+    <rect x="46" y="0" width="12" height="12" rx="2" fill="#9be9a8" stroke="rgba(27,31,36,0.15)" stroke-width="0.8" />
+    <rect x="62" y="0" width="12" height="12" rx="2" fill="#40c463" stroke="rgba(27,31,36,0.15)" stroke-width="0.8" />
+    <rect x="78" y="0" width="12" height="12" rx="2" fill="#30a14e" stroke="rgba(27,31,36,0.15)" stroke-width="0.8" />
+    <rect x="94" y="0" width="12" height="12" rx="2" fill="#216e39" stroke="rgba(27,31,36,0.15)" stroke-width="0.8" />
+    <text x="114" y="11" fill="#656d76" font-family="'Inter', -apple-system, sans-serif" font-size="10.5">More</text>
   </g>
 
   <!-- 3D Skyline Oblique Grid -->
@@ -298,13 +349,13 @@ function generateSvg() {
     ${boxesSvg}
   </g>
 
-  <!-- Leader Annotation -->
+  <!-- Leader Annotation and Callout Badge -->
   ${leaderSvg}
 </svg>`;
 
   const outputPath = path.resolve(rootDir, 'skyline.svg');
   fs.writeFileSync(outputPath, svgContent, 'utf-8');
-  console.log(`Generated SVG skyline animation at: ${outputPath}`);
+  console.log(`Generated Light Mode SVG skyline animation at: ${outputPath}`);
 }
 
 generateSvg();
